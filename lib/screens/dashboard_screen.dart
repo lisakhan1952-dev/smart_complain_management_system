@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-
+// নিশ্চিত করুন এই ফাইলগুলো আপনার প্রোজেক্টে আছে
 import 'submit_complaint_screen.dart';
 import 'tracking_screen.dart';
 import 'profile_screen.dart';
@@ -15,7 +15,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   int _currentIndex = 0;
 
-  // এখানে আমরা আপনার আলাদা করা ফাইলগুলোর ক্লাস নাম ব্যবহার করছি
+  // এখানে আমরা আপনার আলাদা করা ফাইলগুলোর ক্লাস সরাসরি ব্যবহার করছি
   final List<Widget> _pages = [
     const DashboardContent(),
     const SubmitComplaintPage(),
@@ -29,6 +29,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
+      // শুধুমাত্র ড্যাশবোর্ড স্ক্রিনে কাস্টম অ্যাপবার দেখানোর জন্য
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -47,21 +48,10 @@ class _DashboardPageState extends State<DashboardPage> {
         ],
       ),
 
-      // IndexedStack ব্যবহারের ফলে এক পেজ থেকে অন্য পেজে গেলে ডাটা রিলোড হবে না
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
       ),
-
-      floatingActionButton: _currentIndex == 0 ? FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            _currentIndex = 1;
-          });
-        },
-        backgroundColor: primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
-      ) : null,
 
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -99,10 +89,8 @@ class DashboardContent extends StatelessWidget {
           const Text("Welcome back,", style: TextStyle(fontSize: 16, color: Colors.grey)),
           const Text("Ahmed Abdullah", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: primaryColor)),
           const SizedBox(height: 25),
-
           _buildActiveCaseCard(primaryColor),
           const SizedBox(height: 20),
-
           Row(
             children: [
               _buildStatCard("Pending", "04", Icons.more_horiz, Colors.orange),
@@ -111,18 +99,15 @@ class DashboardContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 30),
-
           const Text("Recent Complaints", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryColor)),
           const SizedBox(height: 15),
-
-          _buildComplaintItem("Dorm AC Maintenance", "Ref: #CMS-90421", "In Progress", Colors.greenAccent, Icons.build),
-          _buildComplaintItem("Grade Revision Request", "Ref: #CMS-88120", "Pending", Colors.orangeAccent, Icons.school),
+          _buildComplaintItem("Dorm AC Maintenance", "Ref: #CMS-90421", "In Progress", Colors.teal, Icons.build),
+          _buildComplaintItem("Grade Revision", "Ref: #CMS-88120", "Pending", Colors.orange, Icons.school),
         ],
       ),
     );
   }
 
-  // হেল্পার উইজেটগুলো আগের মতোই থাকছে
   Widget _buildActiveCaseCard(Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -155,18 +140,14 @@ class DashboardContent extends StatelessWidget {
     );
   }
 
-  Widget _buildComplaintItem(String title, String ref, String status, Color statusColor, IconData icon) {
+  Widget _buildComplaintItem(String title, String ref, String status, Color color, IconData icon) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: CircleAvatar(child: Icon(icon, size: 20, color: const Color(0xFF0D1C43))),
+        leading: CircleAvatar(backgroundColor: Colors.grey[100], child: Icon(icon, color: const Color(0xFF0D1C43), size: 20)),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(ref),
-        trailing: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(color: statusColor.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-          child: Text(status, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)),
-        ),
+        trailing: Text(status, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
       ),
     );
   }
