@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smart_complain_management_system/screens/dashboard_content.dart';
 import 'package:smart_complain_management_system/screens/submit_complaint_screen.dart';
+import 'package:smart_complain_management_system/screens/login_screen.dart'; // নিশ্চিত করুন এই পাথটি সঠিক
 import 'tracking_screen.dart';
 import 'profile_screen.dart';
 
@@ -14,7 +15,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   int _currentIndex = 0;
 
-  // পেজ লিস্ট (IndexedStack এর জন্য)
+  // পেজ লিস্ট
   final List<Widget> _pages = [
     const DashboardContent(),
     const SubmitComplaintPage(),
@@ -25,15 +26,10 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF0D1C43);
-    const Color accentColor = Color(0xFF3B82F6);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6), // হালকা এবং পরিষ্কার ব্যাকগ্রাউন্ড
-
-      // --- ১. প্রিমিয়াম কাস্টম ড্রয়ার ---
+      backgroundColor: const Color(0xFFF3F4F6),
       drawer: _buildAwesomeDrawer(primaryColor),
-
-      // --- ২. ডায়নামিক অ্যাপবার ---
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
@@ -50,7 +46,6 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
         actions: [
-          // নোটিফিকেশন ব্যাজ সহ আইকন
           Stack(
             alignment: Alignment.center,
             children: [
@@ -72,13 +67,9 @@ class _DashboardPageState extends State<DashboardPage> {
           const SizedBox(width: 5),
         ],
       ),
-
-      // --- ৩. মেইন কন্টেন্ট উইথ অ্যানিমেশন ---
       body: PageTransitionSwitcher(
         child: _pages[_currentIndex],
       ),
-
-      // --- ৪. কুইক অ্যাকশন ফ্লোটিং বাটন ---
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: _currentIndex == 0 ? FloatingActionButton(
         onPressed: () => setState(() => _currentIndex = 1),
@@ -86,8 +77,6 @@ class _DashboardPageState extends State<DashboardPage> {
         elevation: 4,
         child: const Icon(Icons.add_moderator_rounded, color: Colors.white, size: 30),
       ) : null,
-
-      // --- ৫. প্রিমিয়াম বটম নেভিগেশন ---
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
@@ -112,7 +101,6 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // --- ড্রয়ার ডিজাইন ফাংশন ---
   Widget _buildAwesomeDrawer(Color primaryColor) {
     return Drawer(
       width: MediaQuery.of(context).size.width * 0.8,
@@ -145,6 +133,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   _drawerTile(Icons.contact_support_outlined, "Help & Support", -1),
                   _drawerTile(Icons.settings_outlined, "App Settings", -1),
                   const SizedBox(height: 30),
+                  // Sign Out বাটন
                   _drawerTile(Icons.power_settings_new_rounded, "Sign Out", -2, color: Colors.redAccent),
                 ],
               ),
@@ -164,9 +153,26 @@ class _DashboardPageState extends State<DashboardPage> {
       leading: Icon(icon, color: color, size: 24),
       title: Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 15)),
       onTap: () {
+        // ১. ড্রয়ার বন্ধ করা
         Navigator.pop(context);
-        if (index >= 0) setState(() => _currentIndex = index);
+
+        // ২. যদি ইনডেক্স -২ হয়, তবে লগআউট লজিক কাজ করবে
+        if (index == -2) {
+          _handleLogout();
+        }
+        // ৩. সাধারণ পেজ নেভিগেশন
+        else if (index >= 0) {
+          setState(() => _currentIndex = index);
+        }
       },
+    );
+  }
+
+  // লগআউট ফাংশন
+  void _handleLogout() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginPage()),
     );
   }
 }

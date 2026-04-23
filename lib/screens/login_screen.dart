@@ -2,8 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:smart_complain_management_system/screens/dashboard_screen.dart';
 
-
-
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -11,76 +9,59 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-// লগইন পেজের স্টেট (এখানে সব লজিক থাকবে)
 class _LoginPageState extends State<LoginPage> {
-  // টেক্সট কন্ট্রোলার (ইউজার যা টাইপ করবে তা ধরার জন্য)
-  final TextEditingController _emailController = TextEditingController();
+  // ১. এখানে আপনার নাম বা ইমেইল সেট করে দেওয়া হয়েছে
+  final TextEditingController _emailController =
+  TextEditingController(text: "lisa@baust.edu.bd");
+
   final TextEditingController _passwordController = TextEditingController();
 
-  // পাসওয়ার্ডের এরর বা অন্য কিছুর জন্য স্ট্রিং
-  String? _errorText; // এই ভেরিয়েবলটি আমাদের পাসওয়ার্ডের এরর সলভ করতে সাহায্য করবে
-
-  // ইউজার টাইপ (স্টুডেন্ট নাকি স্টাফ) ট্র‍্যাক করার জন্য
-  String _userType = "Student"; // ডিফল্টভাবে স্টুডেন্ট থাকবে
-
-  // পাসওয়ার্ড দেখানো বা লুকানোর জন্য (চোখ আইকনের লজিক)
+  String? _errorText;
+  String _userType = "Student";
   bool _isObscured = true;
 
-  // লগইন বাটন হ্যান্ডেল করার ফাংশন (সব লজিক এখানে)
   void _handleLogin() {
     setState(() {
-      _errorText = null; // নতুন করে লগইন চেষ্টা করার আগে আগের এরর মুছে ফেলুন
+      _errorText = null;
     });
 
     String email = _emailController.text;
     String password = _passwordController.text;
 
-    // ১. খালি ফিল্ড চেক করা (Validation)
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Email and Password are required!")),
       );
-      return; // কোডটি আর নিচে যাবে না
+      return;
     }
 
-    // ২. ইমেল ফরম্যাট চেক করা (যদি প্রয়োজন হয় - এখানে সিম্পল রেখেছি)
-
-    // ৩. পাসওয়ার্ড ভুল হলে এরর কীভাবে সলভ করবেন?
-    // আমরা প্রথমে সিম্পল লজিক ব্যবহার করব। পরে আপনি এখানে ডাটাবেস যুক্ত করবেন।
-    if (password != "1234") { // মনে করুন সঠিক পাসওয়ার্ড '1234'
+    if (password != "1234") {
       setState(() {
-        // এই লাইনটিই আপনার পাসওয়ার্ড এরর সলভ করবে!
-        // এটি টেক্সট ফিল্ডের নিচে লাল লেখা দেখাবে।
         _errorText = "Incorrect password! Hint: 1234";
       });
-      return; // লগইন সফল হবে না
+      return;
     }
 
-    // ৪. যদি সব ঠিক থাকে, তবে ড্যাশবোর্ডে যান
-    // Navigator.pushReplacement ব্যবহার করলে ইউজার ব্যাক বাটনে ক্লিক করে আবার লগইন এ ফিরতে পারবে না
-    // login_screen.dart এর ভেতরে নেভিগেশনের লাইনটি এভাবে লিখুন
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => DashboardPage()), // এখানে 'const' রাখবেন না
+      MaterialPageRoute(builder: (context) => const DashboardPage()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // BAUST-এর লোগো কালার (গভীর নীল)
     Color primaryColor = const Color(0xFF0D1C43);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("BAUST CMS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent)),
-        centerTitle: false, // স্ক্রিনশটের মতো বাম পাশে টাইটেল
+        centerTitle: false,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
             const SizedBox(height: 20),
-            // ১. BAUST লোগো (একটি সিম্পল আইকন দিয়েছি)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(15)),
@@ -88,7 +69,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 30),
 
-            // ২. Welcome Back লেখা
             const Text(
               "Welcome Back",
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
@@ -101,66 +81,60 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 40),
 
-            // ৩. Student/Staff সিলেকশন (Segmented Button)
             SegmentedButton<String>(
               segments: const <ButtonSegment<String>>[
                 ButtonSegment<String>(value: 'Student', label: Text('Student')),
                 ButtonSegment<String>(value: 'Staff', label: Text('Staff')),
+                ButtonSegment<String>(value: 'Teacher', label: Text('Teacher'))
               ],
               selected: <String>{_userType},
               onSelectionChanged: (Set<String> newSelection) {
                 setState(() {
-                  _userType = newSelection.first; // ইউজার টাইপ পরিবর্তন করুন
+                  _userType = newSelection.first;
                 });
               },
-              // আধুনিক লুক দেওয়ার জন্য
               style: ButtonStyle(
                 backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return primaryColor; // সিলেক্টেড কালার গভীর নীল
-                  }
-                  return Colors.grey[100]!; // আন-সিলেক্টেড কালার
+                  if (states.contains(WidgetState.selected)) return primaryColor;
+                  return Colors.grey[100]!;
                 }),
                 foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return Colors.white; // সিলেক্টেড টেক্সট কালার সাদা
-                  }
-                  return primaryColor; // আন-সিলেক্টেড টেক্সট কালার গভীর নীল
+                  if (states.contains(WidgetState.selected)) return Colors.white;
+                  return primaryColor;
                 }),
               ),
             ),
             const SizedBox(height: 40),
 
-            // ৪. ইমেল ফিল্ড (Icon এবং Placeholder সহ)
+            // ২. ইমেল ফিল্ড - autofillHints: null যোগ করা হয়েছে যাতে 'admin' না আসে
             TextField(
               controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: null, // অটো-ফিল বন্ধ করার জন্য
               decoration: InputDecoration(
                 labelText: "University Email",
-                hintText: "e.g. name@baust.edu.bd", // Placeholder টেক্সট
-                prefixIcon: const Icon(Icons.email_outlined), // বাম পাশে আইকন
+                hintText: "e.g. name@baust.edu.bd",
+                prefixIcon: const Icon(Icons.email_outlined),
                 border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 20),
 
-            // ৫. পাসওয়ার্ড ফিল্ড (এরর, চোখ আইকন এবং Forgot লজিক)
             TextField(
               controller: _passwordController,
-              obscureText: _isObscured, // পাসওয়ার্ড দেখানো বা লুকানো
+              obscureText: _isObscured,
               decoration: InputDecoration(
                 labelText: "Password",
-                prefixIcon: const Icon(Icons.lock_outline), // বাম পাশে আইকন
-                // পাসওয়ার্ড দেখার জন্য চোখ আইকন
+                prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   icon: Icon(_isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined),
                   onPressed: () {
                     setState(() {
-                      _isObscured = !_isObscured; // toggle obscuration
+                      _isObscured = !_isObscured;
                     });
                   },
                 ),
                 border: const OutlineInputBorder(),
-                // এটিই আপনার পাসওয়ার্ড এরর সলভ করার মূল অংশ!
                 errorText: _errorText,
               ),
             ),
@@ -173,24 +147,22 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 10),
 
-            // ৬. Keep me signed in চেকবক্স
             const Row(
               children: [
-                Checkbox(value: true, onChanged: null), // একটি সিম্পল চেকবক্স
+                Checkbox(value: true, onChanged: null),
                 Text("Keep me signed in", style: TextStyle(color: Colors.grey)),
               ],
             ),
             const SizedBox(height: 30),
 
-            // ৭. লগইন বাটন
             SizedBox(
               width: double.infinity,
               height: 55,
               child: ElevatedButton(
-                onPressed: _handleLogin, // লগইন ফাংশন কল করলাম
+                onPressed: _handleLogin,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor, // গভীর নীল কালার
-                  foregroundColor: Colors.white, // সাদা টেক্সট কালার
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 child: const Row(
@@ -205,7 +177,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 30),
 
-            // ৮. "OR" লেখা
             const Row(
               children: [
                 Expanded(child: Divider()),
@@ -215,7 +186,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 30),
 
-            // ৯. Request Access লিঙ্ক
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
