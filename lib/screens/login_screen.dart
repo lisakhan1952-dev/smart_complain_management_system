@@ -1,6 +1,7 @@
-// login_screen.dart ফাইল
 import 'package:flutter/material.dart';
 import 'package:smart_complain_management_system/screens/dashboard_screen.dart';
+import 'package:smart_complain_management_system/screens/signup_screen.dart';
+import 'package:smart_complain_management_system/services/mongodb_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -10,42 +11,67 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // ১. এখানে আপনার নাম বা ইমেইল সেট করে দেওয়া হয়েছে
-  final TextEditingController _emailController =
-  TextEditingController(text: "lisa@baust.edu.bd");
-
+  final _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  String? _errorText;
-  String _userType = "Student";
   bool _isObscured = true;
+  bool _isLoading = false;
 
-  void _handleLogin() {
-    setState(() {
-      _errorText = null;
-    });
-
-    String email = _emailController.text;
-    String password = _passwordController.text;
-
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Email and Password are required!")),
-      );
-      return;
-    }
-
-    if (password != "1234") {
-      setState(() {
-        _errorText = "Incorrect password! Hint: 1234";
-      });
-      return;
-    }
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const DashboardPage()),
+  void _showAwesomeAlert(String title, String message, bool isSuccess) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Column(
+          children: [
+            Icon(
+              isSuccess ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+              color: isSuccess ? Colors.green : Colors.red,
+              size: 60,
+            ),
+            const SizedBox(height: 15),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(message, textAlign: TextAlign.center),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
+  }
+
+  void _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    String email = _emailController.text.trim();
+    String password = _passwordController.text.trim();
+
+    var user = await MongoDatabase.login(email, password);
+
+    setState(() => _isLoading = false);
+
+    if (user != null) {
+      // Success Alert
+      _showAwesomeAlert("Welcome Back!", "Login Successful. Opening Dashboard...", true);
+      
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const DashboardPage()),
+          );
+        }
+      });
+    } else {
+      _showAwesomeAlert("Login Failed", "Invalid email or password. Please try again.", false);
+    }
   }
 
   @override
@@ -53,150 +79,95 @@ class _LoginPageState extends State<LoginPage> {
     Color primaryColor = const Color(0xFF0D1C43);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("BAUST CMS", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent)),
-        centerTitle: false,
+        title: const Text("BAUST CMS", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0D1C43))),
+        elevation: 0,
+        backgroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(15)),
-              child: const Icon(Icons.school_rounded, size: 60, color: Colors.white),
-            ),
-            const SizedBox(height: 30),
-
-            const Text(
-              "Welcome Back",
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              "Access the BAUST Smart Complaint Management System",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-            ),
-            const SizedBox(height: 40),
-
-            SegmentedButton<String>(
-              segments: const <ButtonSegment<String>>[
-                ButtonSegment<String>(value: 'Student', label: Text('Student')),
-                ButtonSegment<String>(value: 'Staff', label: Text('Staff')),
-                ButtonSegment<String>(value: 'Teacher', label: Text('Teacher'))
-              ],
-              selected: <String>{_userType},
-              onSelectionChanged: (Set<String> newSelection) {
-                setState(() {
-                  _userType = newSelection.first;
-                });
-              },
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(WidgetState.selected)) return primaryColor;
-                  return Colors.grey[100]!;
-                }),
-                foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
-                  if (states.contains(WidgetState.selected)) return Colors.white;
-                  return primaryColor;
-                }),
-              ),
-            ),
-            const SizedBox(height: 40),
-
-            // ২. ইমেল ফিল্ড - autofillHints: null যোগ করা হয়েছে যাতে 'admin' না আসে
-            TextField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              autofillHints: null, // অটো-ফিল বন্ধ করার জন্য
-              decoration: InputDecoration(
-                labelText: "University Email",
-                hintText: "e.g. name@baust.edu.bd",
-                prefixIcon: const Icon(Icons.email_outlined),
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            TextField(
-              controller: _passwordController,
-              obscureText: _isObscured,
-              decoration: InputDecoration(
-                labelText: "Password",
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  icon: Icon(_isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                  onPressed: () {
-                    setState(() {
-                      _isObscured = !_isObscured;
-                    });
-                  },
-                ),
-                border: const OutlineInputBorder(),
-                errorText: _errorText,
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {},
-                child: const Text("Forgot?", style: TextStyle(color: Colors.blueAccent)),
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            const Row(
-              children: [
-                Checkbox(value: true, onChanged: null),
-                Text("Keep me signed in", style: TextStyle(color: Colors.grey)),
-              ],
-            ),
-            const SizedBox(height: 30),
-
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                onPressed: _handleLogin,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text("Login", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    SizedBox(width: 10),
-                    Icon(Icons.login_rounded),
-                  ],
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              Hero(
+                tag: 'logo',
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(25)),
+                  child: const Icon(Icons.security_rounded, size: 70, color: Colors.white),
                 ),
               ),
-            ),
-            const SizedBox(height: 30),
+              const SizedBox(height: 30),
+              const Text("Login Session", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+              const Text("Access your smart dashboard", style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 40),
 
-            const Row(
-              children: [
-                Expanded(child: Divider()),
-                Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("OR", style: TextStyle(color: Colors.grey))),
-                Expanded(child: Divider()),
-              ],
-            ),
-            const SizedBox(height: 30),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Don't have an account?", style: TextStyle(color: Colors.grey)),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text("Request Access", style: TextStyle(color: Colors.blueAccent)),
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: "University Email",
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
                 ),
-              ],
-            ),
-          ],
+                validator: (value) {
+                  if (value == null || value.isEmpty) return "Email is required";
+                  if (!value.contains("@")) return "Enter a valid email";
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+
+              TextFormField(
+                controller: _passwordController,
+                obscureText: _isObscured,
+                decoration: InputDecoration(
+                  labelText: "Password",
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(_isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                    onPressed: () => setState(() => _isObscured = !_isObscured),
+                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return "Password is required";
+                  if (value.length < 4) return "Password too short";
+                  return null;
+                },
+              ),
+              const SizedBox(height: 30),
+
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _handleLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  ),
+                  child: _isLoading 
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("Continue", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ),
+              const SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Don't have an account? "),
+                  TextButton(
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignupPage())),
+                    child: const Text("Sign Up", style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

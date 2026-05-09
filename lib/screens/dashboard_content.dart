@@ -1,7 +1,50 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
-class DashboardContent extends StatelessWidget {
+class DashboardContent extends StatefulWidget {
   const DashboardContent({super.key});
+
+  @override
+  State<DashboardContent> createState() => _DashboardContentState();
+}
+
+class _DashboardContentState extends State<DashboardContent> {
+  final PageController _pageController = PageController();
+  int _currentNoticeIndex = 0;
+  Timer? _timer;
+
+  final List<Map<String, String>> _notices = [
+    {"title": "BAUST Official Notice", "body": "New feedback system is live for CSE department."},
+    {"title": "Holiday Announcement", "body": "University will remain closed on Sunday."},
+    {"title": "Exam Schedule", "body": "Mid-term examination starts from next week."},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 4), (Timer timer) {
+      if (_currentNoticeIndex < _notices.length - 1) {
+        _currentNoticeIndex++;
+      } else {
+        _currentNoticeIndex = 0;
+      }
+
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          _currentNoticeIndex,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeIn,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,38 +57,25 @@ class DashboardContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- ১. প্রিমিয়াম ইউজার প্রোফাইল সেকশন ---
           _buildUserInfoSection(primaryColor),
-
           const SizedBox(height: 20),
-
-          // --- ২. ডাইনামিক নোটিশ স্লাইডার (New Feature) ---
+          
+          // --- Updated Notice Slider with 3 Dots ---
           _buildNoticeSlider(accentColor),
 
           const SizedBox(height: 25),
-
-          // --- ৩. মেইন স্ট্যাটাস গ্রিড (Total, Pending, Resolved) ---
           _buildMainStatsGrid(primaryColor),
-
           const SizedBox(height: 25),
-
-          // --- ৪. স্মার্ট অ্যাকশন মেনু (Grid) ---
           const Text("University Services",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor)),
           const SizedBox(height: 15),
           _buildActionGrid(),
-
           const SizedBox(height: 30),
-
-          // --- ৫. ডিপার্টমেন্টাল কমপ্লেন শর্টকাট (Category Feature) ---
           const Text("Departmental Support",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor)),
           const SizedBox(height: 12),
           _buildCategoryList(),
-
           const SizedBox(height: 30),
-
-          // --- ৬. রিসেন্ট অ্যাক্টিভিটি টাইমলাইন ---
           const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -57,14 +87,11 @@ class DashboardContent extends StatelessWidget {
           const SizedBox(height: 15),
           _buildActivityItem("Hostel Wi-Fi Down", "Ref: #BAUST-901", "In Progress", Colors.teal, Icons.wifi_off_rounded),
           _buildActivityItem("Lab Equipment Issue", "Ref: #BAUST-882", "Pending", Colors.orange, Icons.biotech_rounded),
-
           const SizedBox(height: 20),
         ],
       ),
     );
   }
-
-  // --- হেল্পার উইজেটস ---
 
   Widget _buildUserInfoSection(Color primaryColor) {
     return Row(
@@ -99,32 +126,70 @@ class DashboardContent extends StatelessWidget {
   }
 
   Widget _buildNoticeSlider(Color accentColor) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: accentColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: accentColor.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.campaign_rounded, color: Color(0xFF3B82F6), size: 30),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("BAUST Official Notice",
-                    style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
-                Text("New feedback system is live for CSE department.",
-                    style: TextStyle(fontSize: 12, color: Colors.blueGrey[700])),
-              ],
-            ),
+    return Column(
+      children: [
+        SizedBox(
+          height: 100,
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (int index) {
+              setState(() {
+                _currentNoticeIndex = index;
+              });
+            },
+            itemCount: _notices.length,
+            itemBuilder: (context, index) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: accentColor.withOpacity(0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.campaign_rounded, color: Color(0xFF3B82F6), size: 30),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(_notices[index]['title']!,
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
+                          Text(_notices[index]['body']!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, color: Colors.blueGrey[700])),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                  ],
+                ),
+              );
+            },
           ),
-          const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        // --- 3 Dots Indicator ---
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(_notices.length, (index) {
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              height: 8,
+              width: _currentNoticeIndex == index ? 20 : 8,
+              decoration: BoxDecoration(
+                color: _currentNoticeIndex == index ? accentColor : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 
