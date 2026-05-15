@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:smart_complain_management_system/services/mongodb_service.dart';
 
 class DashboardContent extends StatefulWidget {
   const DashboardContent({super.key});
@@ -12,31 +13,41 @@ class _DashboardContentState extends State<DashboardContent> {
   final PageController _pageController = PageController();
   int _currentNoticeIndex = 0;
   Timer? _timer;
-
-  final List<Map<String, String>> _notices = [
-    {"title": "BAUST Official Notice", "body": "New feedback system is live for CSE department."},
-    {"title": "Holiday Announcement", "body": "University will remain closed on Sunday."},
-    {"title": "Exam Schedule", "body": "Mid-term examination starts from next week."},
-  ];
+  
+  List<Map<String, dynamic>> _notices = [];
+  Map<String, int> _stats = {"total": 0, "pending": 0, "solved": 0};
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 4), (Timer timer) {
-      if (_currentNoticeIndex < _notices.length - 1) {
-        _currentNoticeIndex++;
-      } else {
-        _currentNoticeIndex = 0;
-      }
-
-      if (_pageController.hasClients) {
-        _pageController.animateToPage(
-          _currentNoticeIndex,
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeIn,
-        );
+    _fetchData();
+    _timer = Timer.periodic(const Duration(seconds: 5), (Timer timer) {
+      if (_notices.isNotEmpty) {
+        _currentNoticeIndex = (_currentNoticeIndex + 1) % _notices.length;
+        if (_pageController.hasClients) {
+          _pageController.animateToPage(_currentNoticeIndex, duration: const Duration(milliseconds: 600), curve: Curves.easeInOutQuart);
+        }
       }
     });
+  }
+
+  Future<void> _fetchData() async {
+    final notices = await MongoDatabase.getNotices();
+    final user = MongoDatabase.currentUser;
+    final stats = await MongoDatabase.getStats(
+      user?['email'], 
+      role: user?['role'], 
+      dept: user?['department']
+    );
+    
+    if (mounted) {
+      setState(() {
+        _notices = notices;
+        _stats = stats;
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -48,282 +59,290 @@ class _DashboardContentState extends State<DashboardContent> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF0D1C43);
-    const Color accentColor = Color(0xFF3B82F6);
+    const Color primaryColor = Color(0xFF1A1F36); // Deep Navy
+    const Color accentColor = Color(0xFF6366F1); // Indigo
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 10.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildUserInfoSection(primaryColor),
-          const SizedBox(height: 20),
-          
-          // --- Updated Notice Slider with 3 Dots ---
-          _buildNoticeSlider(accentColor),
+    if (_isLoading) return const Center(child: CircularProgressIndicator(color: accentColor));
 
-          const SizedBox(height: 25),
-          _buildMainStatsGrid(primaryColor),
-          const SizedBox(height: 25),
-          const Text("University Services",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor)),
-          const SizedBox(height: 15),
-          _buildActionGrid(),
-          const SizedBox(height: 30),
-          const Text("Departmental Support",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor)),
-          const SizedBox(height: 12),
-          _buildCategoryList(),
-          const SizedBox(height: 30),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Ongoing Tracking",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor)),
-              Text("See All", style: TextStyle(color: accentColor, fontWeight: FontWeight.w600)),
+    return RefreshIndicator(
+      onRefresh: _fetchData,
+      color: accentColor,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildPremiumHeader(primaryColor, accentColor),
+            const SizedBox(height: 25),
+            
+            if (_notices.isNotEmpty) ...[
+              const Text("Latest News", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+              const SizedBox(height: 12),
+              _buildModernNoticeSlider(accentColor),
+              const SizedBox(height: 30),
             ],
-          ),
-          const SizedBox(height: 15),
-          _buildActivityItem("Hostel Wi-Fi Down", "Ref: #BAUST-901", "In Progress", Colors.teal, Icons.wifi_off_rounded),
-          _buildActivityItem("Lab Equipment Issue", "Ref: #BAUST-882", "Pending", Colors.orange, Icons.biotech_rounded),
-          const SizedBox(height: 20),
-        ],
+
+            _buildGlassStats(primaryColor, accentColor),
+            
+            const SizedBox(height: 35),
+            const Text("Service Hub", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const SizedBox(height: 15),
+            _buildResponsiveActionGrid(MongoDatabase.currentUser?['role'] ?? "Student"),
+
+            const SizedBox(height: 35),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Activity Stream", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                TextButton(
+                  onPressed: () {}, 
+                  child: const Text("View All", style: TextStyle(color: accentColor, fontWeight: FontWeight.bold))
+                )
+              ],
+            ),
+            const SizedBox(height: 10),
+            _buildRecentActivityList(),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildUserInfoSection(Color primaryColor) {
+  Widget _buildPremiumHeader(Color primaryColor, Color accentColor) {
+    final user = MongoDatabase.currentUser;
     return Row(
       children: [
         Container(
+          padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: primaryColor.withOpacity(0.2), width: 2),
+            gradient: LinearGradient(colors: [accentColor, Colors.blueAccent]),
           ),
-          child: const CircleAvatar(
-            radius: 28,
-            backgroundColor: Color(0xFFF1F5F9),
-            child: Icon(Icons.person_outline_rounded, color: Color(0xFF0D1C43), size: 30),
+          child: CircleAvatar(
+            radius: 32,
+            backgroundColor: Colors.white,
+            child: Text(
+              user?['name']?[0] ?? "U", 
+              style: TextStyle(color: primaryColor, fontWeight: FontWeight.w900, fontSize: 26)
+            ),
           ),
         ),
-        const SizedBox(width: 12),
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Good Morning,", style: TextStyle(fontSize: 14, color: Colors.grey)),
-            Text("Ahmed Abdullah",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
-          ],
+        const SizedBox(width: 18),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Welcome back,", 
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w500)
+              ),
+              Text(
+                user?['name'] ?? "User", 
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: Color(0xFF1E293B)),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
-        const Spacer(),
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.grey),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]
+          ),
+          child: IconButton(
+            onPressed: () {},
+            icon: Icon(Icons.notifications_none_rounded, color: Colors.grey.shade800),
+          ),
         )
       ],
     );
   }
 
-  Widget _buildNoticeSlider(Color accentColor) {
-    return Column(
-      children: [
-        SizedBox(
-          height: 100,
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (int index) {
-              setState(() {
-                _currentNoticeIndex = index;
-              });
-            },
-            itemCount: _notices.length,
-            itemBuilder: (context, index) {
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: accentColor.withOpacity(0.2)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.campaign_rounded, color: Color(0xFF3B82F6), size: 30),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(_notices[index]['title']!,
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
-                          Text(_notices[index]['body']!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 12, color: Colors.blueGrey[700])),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 10),
-        // --- 3 Dots Indicator ---
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(_notices.length, (index) {
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              height: 8,
-              width: _currentNoticeIndex == index ? 20 : 8,
-              decoration: BoxDecoration(
-                color: _currentNoticeIndex == index ? accentColor : Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(10),
-              ),
-            );
-          }),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMainStatsGrid(Color primaryColor) {
+  Widget _buildGlassStats(Color primaryColor, Color accentColor) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: primaryColor,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: primaryColor.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(color: primaryColor.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))
+        ],
+        image: DecorationImage(
+          image: const NetworkImage("https://www.transparenttextures.com/patterns/carbon-fibre.png"),
+          opacity: 0.1,
+          colorFilter: ColorFilter.mode(Colors.white.withOpacity(0.05), BlendMode.srcATop)
+        )
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatsColumn("12", "Total"),
-          _buildVerticalDivider(),
-          _buildStatsColumn("04", "Active"),
-          _buildVerticalDivider(),
-          _buildStatsColumn("08", "Closed"),
+          _buildModernStatItem(_stats['total'].toString(), "Total", Icons.analytics_outlined),
+          _buildModernStatItem(_stats['pending'].toString(), "Active", Icons.pending_actions_outlined),
+          _buildModernStatItem(_stats['solved'].toString(), "Solved", Icons.task_alt_rounded),
         ],
       ),
     );
   }
 
-  Widget _buildStatsColumn(String count, String label) {
+  Widget _buildModernStatItem(String val, String label, IconData icon) {
     return Column(
       children: [
-        Text(count, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        Icon(icon, color: Colors.white70, size: 20),
+        const SizedBox(height: 8),
+        Text(val, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
+        Text(label, style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12, fontWeight: FontWeight.w600)),
       ],
     );
   }
 
-  Widget _buildVerticalDivider() {
-    return Container(height: 30, width: 1, color: Colors.white24);
-  }
-
-  Widget _buildActionGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 4,
-      mainAxisSpacing: 15,
-      children: [
-        _buildIconAction(Icons.add_task_rounded, "New", Colors.blue),
-        _buildIconAction(Icons.history_edu_rounded, "Logs", Colors.orange),
-        _buildIconAction(Icons.contact_support_rounded, "Support", Colors.teal),
-        _buildIconAction(Icons.gavel_rounded, "Policy", Colors.indigo),
-        _buildIconAction(Icons.apartment_rounded, "Hostel", Colors.purple),
-        _buildIconAction(Icons.library_books_rounded, "Library", Colors.brown),
-        _buildIconAction(Icons.bus_alert_rounded, "Transport", Colors.redAccent),
-        _buildIconAction(Icons.grid_view_rounded, "More", Colors.blueGrey),
-      ],
-    );
-  }
-
-  Widget _buildIconAction(IconData icon, String label, Color color) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: color, size: 24),
-        ),
-        const SizedBox(height: 5),
-        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
-      ],
-    );
-  }
-
-  Widget _buildCategoryList() {
-    List<String> cats = ["CSE", "EEE", "ME", "CE", "IPE", "BBA"];
+  Widget _buildModernNoticeSlider(Color accentColor) {
     return SizedBox(
-      height: 40,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: cats.length,
-        itemBuilder: (context, index) {
-          return Container(
-            margin: const EdgeInsets.only(right: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              color: index == 0 ? const Color(0xFF0D1C43) : Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Center(
-              child: Text(cats[index],
-                  style: TextStyle(
-                      color: index == 0 ? Colors.white : Colors.black87,
-                      fontWeight: FontWeight.bold
-                  )),
-            ),
-          );
-        },
+      height: 120,
+      child: PageView.builder(
+        controller: _pageController,
+        onPageChanged: (i) => setState(() => _currentNoticeIndex = i),
+        itemCount: _notices.length,
+        itemBuilder: (context, index) => Container(
+          margin: const EdgeInsets.only(right: 10),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [accentColor.withOpacity(0.08), Colors.blue.withOpacity(0.05)]),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: accentColor.withOpacity(0.1)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                child: Icon(Icons.auto_awesome, color: accentColor, size: 24),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(_notices[index]['title'], style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF1E293B))),
+                    const SizedBox(height: 4),
+                    Text(_notices[index]['body'], maxLines: 2, style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.3)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildActivityItem(String title, String ref, String status, Color color, IconData icon) {
+  Widget _buildResponsiveActionGrid(String role) {
+    List<Map<String, dynamic>> actions = [];
+    if (role == "Student") {
+      actions = [
+        {"icon": Icons.add_circle_rounded, "label": "Lodge", "color": Colors.blue},
+        {"icon": Icons.radar_rounded, "label": "Track", "color": Colors.indigo},
+        {"icon": Icons.support_agent_rounded, "label": "Staff", "color": Colors.teal},
+        {"icon": Icons.menu_book_rounded, "label": "Guide", "color": Colors.orange},
+      ];
+    } else {
+      actions = [
+        {"icon": Icons.dashboard_customize_rounded, "label": "Panel", "color": Colors.deepPurple},
+        {"icon": Icons.people_rounded, "label": "Users", "color": Colors.blue},
+        {"icon": Icons.send_time_extension_rounded, "label": "Global", "color": Colors.pink},
+        {"icon": Icons.settings_rounded, "label": "Admin", "color": Colors.blueGrey},
+      ];
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4, crossAxisSpacing: 15, mainAxisSpacing: 15, childAspectRatio: 0.8
+      ),
+      itemCount: actions.length,
+      itemBuilder: (context, i) => Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: actions[i]['color'].withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(actions[i]['icon'], color: actions[i]['color'], size: 28),
+          ),
+          const SizedBox(height: 10),
+          Text(actions[i]['label'], style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecentActivityList() {
+    final user = MongoDatabase.currentUser;
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: (user?['role'] == 'Admin') 
+        ? MongoDatabase.getAllComplaints() 
+        : (user?['role'] == 'Student' 
+           ? MongoDatabase.getMyComplaints(user!['email'])
+           : MongoDatabase.getAllComplaints(dept: user?['department'])),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: LinearProgressIndicator());
+        if (snapshot.data!.isEmpty) return const Text("No recent updates.");
+        
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: snapshot.data!.take(5).length,
+          itemBuilder: (context, index) {
+            final c = snapshot.data![index];
+            return _buildModernActivityItem(c);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildModernActivityItem(Map<String, dynamic> c) {
+    Color statusColor = c['status'] == 'Resolved' ? const Color(0xFF10B981) : (c['status'] == 'Pending' ? const Color(0xFFF59E0B) : const Color(0xFF3B82F6));
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.grey.shade100),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: color),
+            width: 45, height: 45,
+            decoration: BoxDecoration(color: statusColor.withOpacity(0.1), shape: BoxShape.circle),
+            child: Icon(Icons.article_rounded, color: statusColor, size: 22),
           ),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text(ref, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                Text(c['category'], style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1E293B))),
+                const SizedBox(height: 2),
+                Text(c['description'], maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-            child: Text(status, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
-          )
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            child: Text(
+              c['status'], 
+              style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5)
+            ),
+          ),
         ],
       ),
     );
